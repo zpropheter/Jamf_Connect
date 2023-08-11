@@ -53,6 +53,7 @@ setPamToDefault=("# sudo: auth account password session
 	session    required       pam_permit.so")
 
 #DECLARE PAM SETTING FOR SCRIPT TO SET, OPTIONS ARE 'DEFAULT' 'ENABLED' OR 'REQUIRED'
+#THIS IS THE ONE AND ONLY VARIABLE YOU NEED TO SET FOR THIS SCRIPT. EVERYTHING ELSE SHOULD BE STATIC
 pamSetting="DEFAULT"
 
 if [[ $pamSetting == DEFAULT ]]; then
