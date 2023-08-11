@@ -26,7 +26,41 @@
 
 /usr/local/bin/authchanger -DefaultJCRight
 
-#ALLOW BUT DO NOT REQUIRE AUTHENTICATION WITH PAM
-sed -i "" -e '2s/^/auth sufficient pam_saml.so\n/' /etc/pam.d/sudo
+#THIS WORKFLOW SHOULD BE THOROUGHLY TESTED PRIOR TO DEPLOYMENT. IT CAN THOROUGHLY MESS UP YOUR SUDO PERMISSIONS IF YOU SEND IT OUT UNTESTED
+#WILL REQUIRE SUDO PERMISSIONS TO RUN. THIS IS PROVIDED BY JAMF IF PUSHED VIA POLICY OR SELF SERVICE
 
-#REQUIRE AUTHENTICATION WITH PAM
+setPamToRequired=("# sudo: auth account password session
+	auth       required       pam_saml.so
+	# auth       sufficient     pam_smartcard.so
+	# auth       required       pam_opendirectory.so
+	account    required       pam_permit.so
+	password   required       pam_deny.so
+	session    required       pam_permit.so")
+
+setPamToEnabled=("# sudo: auth account password session
+	auth       sufficient     pam_saml.so
+	auth       sufficient     pam_smartcard.so
+	auth       required       pam_opendirectory.so
+	account    required       pam_permit.so
+	password   required       pam_deny.so
+	session    required       pam_permit.so")
+
+setPamToDefault=("# sudo: auth account password session
+	auth       sufficient     pam_smartcard.so
+	auth       required       pam_opendirectory.so
+	account    required       pam_permit.so
+	password   required       pam_deny.so
+	session    required       pam_permit.so")
+
+#DECLARE PAM SETTING FOR SCRIPT TO SET, OPTIONS ARE 'DEFAULT' 'ENABLED' OR 'REQUIRED'
+pamSetting="DEFAULT"
+
+if [[ $pamSetting == DEFAULT ]]; then
+	echo "$setPamToDefault" > /etc/pam.d/sudo
+elif [[ $pamSetting == ENABLED ]]; then
+	echo "$setPamToEnabled" > /etc/pam.d/sudo
+elif [[ $pamSetting == REQUIRED ]]; then
+	echo "$setPamToRequired" > /etc/pam.d/sudo
+else
+	echo "Invalid PAM setting, exiting"
+fi
