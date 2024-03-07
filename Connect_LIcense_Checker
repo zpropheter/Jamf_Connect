@@ -1,0 +1,62 @@
+#!/bin/bash
+
+connectLicenseInstalled=$(defaults read /Library/Managed\ Preferences/com.jamf.connect.plist LicenseFile)
+connectLoginLicenseInstalled=$(defaults read /Library/Managed\ Preferences/com.jamf.connect.login.plist LicenseFile)
+profilesWithConnectLicense=$(grep -A 1 "LicenseFile" /tmp/profiles.xml | awk -F'<string>' '{print $2}' | sed 's/string>//g' | sed 's/<.*//;/^$/d')
+connectLicenseExpiration=$(grep -A 1 "ExpirationDate" /tmp/license.txt | awk '{ print $1 }' | sed 's/<string>//g' | sed 's/<.*//;/^$/d' | tr -d "-")
+connectDateCompare=$(date +%Y%m%d)
+
+if [ -e /tmp/profiles.xml ] ;then rm -r /tmp/profiles.xml
+fi
+
+#CHECK FOR JAMF CONNECT LICENSE, THEN COPY AND CONVERT TO A READABLE FORMAT
+LicensefromLogin=$(defaults read /Library/Managed\ Preferences/com.jamf.connect.login.plist LicenseFile 2>/dev/null)
+LicensefromMenubar=$(defaults read /Library/Managed\ Preferences/com.jamf.connect.plist LicenseFile 2>/dev/null)
+if [[ "$LicensefromLogin" == "PD94"* ]]; then
+	(echo "$LicensefromLogin" | base64 -d) > /tmp/license.txt
+elif [[ "$LicensefromMenubar" == "PD94"* ]]; then
+	(echo "$LicensefromMenubar" | base64 -d) > /tmp/license.txt
+else
+	file=""
+fi
+
+
+sudo profiles show -output /tmp/profiles.xml stdout-xml	> /dev/null
+
+
+
+
+connectLicenseArray() {
+for i in $profilesWithConnectLicense; do
+	if [[ "$i" == $connectLicenseInstalled ]]; then
+		if [ $connectDateCompare -ge $connectLicenseExpiration ]; then
+			/Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -button1 "Ok"  -heading "Expired License" -windowType utility -title "Match Found" -description "Matching Profile found for installed Connect License (com.jamf.connect). Currently installed Jamf Connect License is expired" -defaultButton 1
+		else
+			/Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -button1 "Ok"  -heading "Valid License" -windowType utility -title "Match Found" -description "Matching Profile found for installed Connect License (com.jamf.connect). Currently installed Jamf Connect License is valid" -defaultButton 1
+		fi
+	else
+		/Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -button1 "Ok"  -heading "Expired License" -windowType utility -title "Match Found" -description "Mismatch between installed Connect license found in com.jamf.connect plist and an installed profile. Search the profiles.xml file for this license string to see which one profile is attempting to install this license string: $i" -defaultButton 1
+	fi
+done
+}
+
+connectLoginLicenseArray() {
+	for i in $profilesWithConnectLicense; do
+		if [[ "$i" == $connectLoginLicenseInstalled ]]; then
+			echo -e "-Matching Profile found for installed Connect License (com.jamf.connect.login)." 
+			if [ $connectDateCompare -ge $connectLicenseExpiration ]; then
+				/Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -button1 "Ok" -heading "Expired License" -windowType utility -title "Match Found" -description "Matching Profile found for installed Connect License (com.jamf.connect.login). Currently installed Jamf Connect License is expired" -defaultButton 1
+			else
+				/Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -button1 "Ok" -heading "Valid License" -windowType utility -title "Match Found" -description "Matching Profile found for installed Connect License (com.jamf.connect.login). Currently installed Jamf Connect License is valid" -defaultButton 1
+			fi
+		else
+			/Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -button1 "Ok" -heading "Expired License" -windowType utility -title "Match Found" -description "Mismatch between installed Connect license found in com.jamf.connect.login plist and an installed profile. Search the profiles.xml file for this license string to see which one profile is attempting to install this license string: $i" -defaultButton 1
+		fi
+	done
+}
+
+if [[ "$connectLicenseInstalled" != "" ]]; then
+	connectLicenseArray 
+else
+	connectLoginLicenseArray 
+fi
